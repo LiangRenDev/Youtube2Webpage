@@ -59,5 +59,33 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(assign_chapter(960)["slug"],  "simulator")
         self.assertEqual(assign_chapter(1300)["slug"], "robots")
 
+from generate_magazine import build_entries
+
+class TestBuildEntries(unittest.TestCase):
+    def test_build_entries_basic(self):
+        vtt_entries = [
+            {"secs": 4.789, "text": "All right. Let's get started."},
+            {"secs": 7.030, "text": "My name is Ashok."},
+        ]
+        image_files = ["00-00-04.789.jpg", "00-00-07.030.jpg"]
+        entries = build_entries(vtt_entries, image_files, video_id="IRu-cPkpiFk")
+        self.assertEqual(len(entries), 2)
+        e = entries[0]
+        self.assertEqual(e["image"],    "00-00-04.789.jpg")
+        self.assertEqual(e["text"],     "All right. Let's get started.")
+        self.assertEqual(e["yt_url"],   "https://www.youtube.com/watch?v=IRu-cPkpiFk&t=4")
+        self.assertEqual(e["display_ts"], "0:04")
+        self.assertEqual(e["chapter_slug"], "intro")
+
+    def test_build_entries_nearest_vtt(self):
+        # Image at 7.5s should pick VTT entry at 7.030 (closer than 4.789)
+        vtt_entries = [
+            {"secs": 4.789, "text": "Text A"},
+            {"secs": 7.030, "text": "Text B"},
+        ]
+        image_files = ["00-00-07.500.jpg"]
+        entries = build_entries(vtt_entries, image_files, video_id="IRu-cPkpiFk")
+        self.assertEqual(entries[0]["text"], "Text B")
+
 if __name__ == "__main__":
     unittest.main()

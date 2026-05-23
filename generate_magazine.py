@@ -67,3 +67,26 @@ def assign_chapter(secs: float) -> dict:
         if ch["start"] <= secs < ch["end"]:
             return ch
     return CHAPTERS[-1]
+
+# ── Entry builder ─────────────────────────────────────────────────────────────
+
+def build_entries(vtt_entries: list, image_files: list, video_id: str) -> list:
+    """
+    For each image file (sorted), find the nearest VTT entry by timestamp.
+    Returns list of entry dicts ready for HTML rendering.
+    """
+    result = []
+    for img in sorted(image_files):
+        secs = img_filename_to_secs(img)
+        nearest = min(vtt_entries, key=lambda e: abs(e["secs"] - secs))
+        chapter = assign_chapter(secs)
+        result.append({
+            "image":        img,
+            "text":         nearest["text"],
+            "secs":         secs,
+            "display_ts":   format_display_ts(secs),
+            "yt_url":       f"https://www.youtube.com/watch?v={video_id}&t={int(secs)}",
+            "chapter_slug": chapter["slug"],
+            "chapter_label": chapter["label"],
+        })
+    return result
