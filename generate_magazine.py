@@ -108,13 +108,53 @@ SUMMARY_TEXT = (
     "autonomously driving off the assembly line."
 )
 
-def render_html_head() -> str:
+META_DESCRIPTION = (
+    "Tesla VP Ashok Elluswamy reveals Tesla's end-to-end neural network approach, "
+    "world simulator, fleet data strategy, and Optimus robot transfer at ICCV 2025."
+)
+
+VIDEO_YT_URL = f"https://www.youtube.com/watch?v={VIDEO_ID}"
+
+def render_html_head(first_image: str = "") -> str:
+    og_image = f"images/{first_image}" if first_image else ""
+    structured_data = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": VIDEO_TITLE,
+        "description": META_DESCRIPTION,
+        "author": {"@type": "Person", "name": "Ashok Elluswamy"},
+        "publisher": {"@type": "Organization", "name": "Tesla AI"},
+        "isBasedOn": VIDEO_YT_URL,
+        "keywords": "Tesla, autonomous driving, neural network, ICCV 2025, self-driving, world simulator",
+    }
+    import json
+    ld = json.dumps(structured_data, indent=2)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{VIDEO_TITLE}</title>
+  <meta name="description" content="{META_DESCRIPTION}">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{VIDEO_TITLE}">
+  <meta property="og:description" content="{META_DESCRIPTION}">
+  <meta property="og:image" content="{og_image}">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{VIDEO_TITLE}">
+  <meta name="twitter:description" content="{META_DESCRIPTION}">
+  <meta name="twitter:image" content="{og_image}">
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+{ld}
+  </script>
+
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -243,7 +283,7 @@ def main(project_dir: str):
 
     # Render HTML
     html = (
-        render_html_head()
+        render_html_head(image_files[0])
         + render_nav()
         + render_hero(image_files[0])
         + render_summary()
