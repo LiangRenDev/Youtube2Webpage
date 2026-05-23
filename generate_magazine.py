@@ -90,3 +90,60 @@ def build_entries(vtt_entries: list, image_files: list, video_id: str) -> list:
             "chapter_label": chapter["label"],
         })
     return result
+
+# ── HTML rendering ────────────────────────────────────────────────────────────
+
+VIDEO_ID = "IRu-cPkpiFk"
+VIDEO_TITLE = "A Peek into Tesla's Autonomous Future: Core Tech Revealed by VP Ashok Elluswamy"
+VIDEO_META  = "TESLA AI · ASHOK ELLUSWAMY · ICCV 2025"
+
+SUMMARY_TEXT = (
+    "Tesla VP Ashok Elluswamy reveals the full end-to-end neural network stack "
+    "powering production vehicles today—from raw camera pixels to steering "
+    "output—plus the world simulator used to train and evaluate it. Key topics: "
+    "fleet data at scale (“the Niagara Falls of data”), 3D Gaussian splatting "
+    "for scene reconstruction, closed-loop reinforcement learning, and transfer of "
+    "the same architecture to Tesla's Optimus humanoid robot. Milestones covered: "
+    "commercial robotaxi launch in Austin and the SF Bay Area, and production vehicles "
+    "autonomously driving off the assembly line."
+)
+
+def render_html_head() -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{VIDEO_TITLE}</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+"""
+
+def render_nav() -> str:
+    links = "".join(
+        f'<a href="#{ch["slug"]}">{ch["label"].title()}</a>'
+        for ch in CHAPTERS
+    )
+    return f"""<nav id="topnav">
+  <span class="nav-brand">ICCV 2025</span>
+  <div class="nav-chapters">{links}</div>
+  <input id="search" type="search" placeholder="Search transcript…" autocomplete="off">
+</nav>
+"""
+
+def render_hero(first_image: str) -> str:
+    return f"""<section class="hero" style="background-image:url('images/{first_image}')">
+  <div class="hero-overlay">
+    <div class="hero-meta">{VIDEO_META}</div>
+    <h1>{VIDEO_TITLE}</h1>
+  </div>
+</section>
+"""
+
+def render_summary() -> str:
+    return f"""<div class="summary-box">
+  <div class="summary-label">SUMMARY</div>
+  <p>{SUMMARY_TEXT}</p>
+</div>
+"""
