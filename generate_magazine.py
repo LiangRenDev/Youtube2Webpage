@@ -175,3 +175,42 @@ def render_transcript(entries: list) -> str:
         html += "</section>\n"
     html += "</main>\n"
     return html
+
+def render_scripts() -> str:
+    return """<script>
+(function () {
+  // ── Search ──────────────────────────────────────────────────────
+  const searchInput = document.getElementById('search');
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase().trim();
+    document.querySelectorAll('.chapter').forEach(chapter => {
+      let visibleCount = 0;
+      chapter.querySelectorAll('.entry').forEach(entry => {
+        const text = entry.querySelector('.entry-text').textContent.toLowerCase();
+        const match = !q || text.includes(q);
+        entry.classList.toggle('hidden', !match);
+        if (match) visibleCount++;
+      });
+      const divider = chapter.querySelector('.chapter-divider');
+      if (divider) divider.classList.toggle('hidden', visibleCount === 0 && !!q);
+    });
+  });
+
+  // ── Chapter nav highlighting ─────────────────────────────────────
+  const navLinks = document.querySelectorAll('.nav-chapters a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const link = document.querySelector(`.nav-chapters a[href="#${entry.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  document.querySelectorAll('.chapter').forEach(ch => observer.observe(ch));
+})();
+</script>
+"""
