@@ -1,0 +1,188 @@
+:root {
+  --bg:     #fdf6ee;
+  --white:  #ffffff;
+  --red:    #c8531e;
+  --dark:   #1a1a1a;
+  --text:   #333333;
+  --muted:  #888888;
+  --border: #e0d4c0;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* ── Nav ──────────────────────────────────────────────────────────── */
+#topnav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--dark);
+  display: flex; align-items: center; gap: 20px;
+  padding: 10px 24px;
+  height: 44px;
+}
+
+.nav-brand {
+  color: var(--red);
+  font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  font-family: system-ui, sans-serif;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.nav-chapters {
+  display: flex; gap: 16px; flex: 1; overflow: hidden;
+}
+
+.nav-chapters a {
+  color: #aaa;
+  font-size: 11px; font-family: system-ui, sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color .15s;
+}
+
+.nav-chapters a:hover,
+.nav-chapters a.active { color: var(--red); }
+
+#search {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  color: #eee;
+  font-size: 11px; font-family: system-ui, sans-serif;
+  padding: 5px 12px;
+  width: 200px;
+  outline: none;
+  flex-shrink: 0;
+}
+#search::placeholder { color: #555; }
+#search:focus { border-color: var(--red); }
+
+/* ── Hero ─────────────────────────────────────────────────────────── */
+.hero {
+  margin-top: 44px;
+  height: 340px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex; align-items: flex-end;
+}
+
+.hero-overlay {
+  background: linear-gradient(to top, rgba(0,0,0,.75) 0%, rgba(0,0,0,0) 60%);
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 32px 40px;
+}
+
+.hero-meta {
+  color: var(--red);
+  font-size: 11px; letter-spacing: .12em;
+  font-family: system-ui, sans-serif; font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.hero h1 {
+  color: #fff;
+  font-size: 26px; font-weight: 700; line-height: 1.25;
+  max-width: 640px;
+}
+
+/* ── Summary ──────────────────────────────────────────────────────── */
+.summary-box {
+  max-width: 800px;
+  margin: 36px auto;
+  background: var(--white);
+  border-radius: 8px;
+  border-left: 4px solid var(--red);
+  padding: 24px 28px;
+}
+
+.summary-label {
+  font-size: 10px; color: var(--red);
+  letter-spacing: .14em; font-family: system-ui, sans-serif; font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.summary-box p {
+  font-size: 15px; line-height: 1.75; color: var(--text);
+}
+
+/* ── Transcript ───────────────────────────────────────────────────── */
+#transcript {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* Chapter section */
+.chapter { margin-bottom: 8px; }
+
+.chapter-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 36px 0 16px;
+}
+.chapter-divider::before,
+.chapter-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.chapter-divider span {
+  font-size: 10px; color: var(--red);
+  letter-spacing: .14em; font-family: system-ui, sans-serif; font-weight: 700;
+  white-space: nowrap;
+}
+.chapter-divider.hidden { display: none; }
+
+/* Entry card */
+.entry {
+  display: flex;
+  background: var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  transition: box-shadow .2s;
+}
+.entry:hover { box-shadow: 0 2px 14px rgba(0,0,0,.08); }
+.entry.hidden { display: none !important; }
+
+.entry-img-right { flex-direction: row-reverse; }
+
+.entry-image {
+  position: relative;
+  flex-shrink: 0;
+  display: block;
+  text-decoration: none;
+}
+.entry-image img {
+  width: 160px; height: 112px;
+  object-fit: cover; display: block;
+}
+.entry-image:hover img { opacity: .9; }
+
+.timestamp {
+  position: absolute; bottom: 6px; right: 6px;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  font-size: 9px; font-family: system-ui, sans-serif;
+  padding: 2px 5px; border-radius: 2px;
+}
+
+.entry-text {
+  padding: 16px 20px;
+  font-size: 13px; line-height: 1.7;
+  color: var(--text);
+  display: flex; align-items: center;
+}
+
+/* Search highlight */
+mark {
+  background: #ffe0c8;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
