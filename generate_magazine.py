@@ -34,3 +34,36 @@ def parse_vtt_clean_entries(vtt_text: str) -> list:
         if text:
             entries.append({"secs": start_secs, "text": text})
     return entries
+
+# ── Image helpers ─────────────────────────────────────────────────────────────
+
+def img_filename_to_secs(filename: str) -> float:
+    """'HH-MM-SS.mmm.jpg' → float seconds."""
+    name = filename.replace(".jpg", "")
+    h, m, s = name.split("-")
+    return int(h) * 3600 + int(m) * 60 + float(s)
+
+def format_display_ts(secs: float) -> str:
+    """83.43 → '1:23'  (no leading zero on minutes)."""
+    total = int(secs)
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+# ── Chapter assignment ────────────────────────────────────────────────────────
+
+CHAPTERS = [
+    {"slug": "intro",        "label": "INTRO & MILESTONES",       "start":    0, "end":  150},
+    {"slug": "architecture", "label": "END-TO-END ARCHITECTURE",  "start":  150, "end":  540},
+    {"slug": "data",         "label": "DATA AT SCALE",            "start":  540, "end":  960},
+    {"slug": "simulator",    "label": "WORLD SIMULATOR",          "start":  960, "end": 1260},
+    {"slug": "robots",       "label": "ROBOTS & OPTIMUS",         "start": 1260, "end": 99999},
+]
+
+def assign_chapter(secs: float) -> dict:
+    for ch in CHAPTERS:
+        if ch["start"] <= secs < ch["end"]:
+            return ch
+    return CHAPTERS[-1]

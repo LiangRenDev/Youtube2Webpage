@@ -39,5 +39,25 @@ class TestVttParser(unittest.TestCase):
         self.assertAlmostEqual(entries[1]["secs"], 7.030)
         self.assertEqual(entries[1]["text"], "Uh my name is Ashok. I lead the Tesla AI")
 
+from generate_magazine import img_filename_to_secs, format_display_ts, assign_chapter
+
+class TestHelpers(unittest.TestCase):
+    def test_img_filename_to_secs(self):
+        self.assertAlmostEqual(img_filename_to_secs("00-00-04.789.jpg"), 4.789)
+        self.assertAlmostEqual(img_filename_to_secs("00-01-23.430.jpg"), 83.430)
+        self.assertAlmostEqual(img_filename_to_secs("00-24-28.710.jpg"), 1468.710)
+
+    def test_format_display_ts(self):
+        self.assertEqual(format_display_ts(4.789),    "0:04")
+        self.assertEqual(format_display_ts(83.430),   "1:23")
+        self.assertEqual(format_display_ts(1469.14),  "24:29")
+
+    def test_assign_chapter(self):
+        self.assertEqual(assign_chapter(0)["slug"],    "intro")
+        self.assertEqual(assign_chapter(200)["slug"],  "architecture")
+        self.assertEqual(assign_chapter(600)["slug"],  "data")
+        self.assertEqual(assign_chapter(960)["slug"],  "simulator")
+        self.assertEqual(assign_chapter(1300)["slug"], "robots")
+
 if __name__ == "__main__":
     unittest.main()
