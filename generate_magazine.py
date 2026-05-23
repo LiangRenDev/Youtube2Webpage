@@ -147,3 +147,31 @@ def render_summary() -> str:
   <p>{SUMMARY_TEXT}</p>
 </div>
 """
+
+def render_transcript(entries: list) -> str:
+    """
+    Group entries by chapter, emit a chapter section for each,
+    alternating entry-img-left / entry-img-right within each chapter.
+    """
+    from itertools import groupby
+
+    html = '<main id="transcript">\n'
+    for chapter_slug, group in groupby(entries, key=lambda e: e["chapter_slug"]):
+        group = list(group)
+        chapter_label = group[0]["chapter_label"]
+        html += f'<section class="chapter" id="{chapter_slug}">\n'
+        html += f'  <div class="chapter-divider"><span>{chapter_label}</span></div>\n'
+        for i, entry in enumerate(group):
+            side_class = "entry-img-left" if i % 2 == 0 else "entry-img-right"
+            safe_text = entry["text"].replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+            html += f"""  <article class="entry {side_class}">
+    <a class="entry-image" href="{entry['yt_url']}" target="_blank" rel="noopener">
+      <img src="images/{entry['image']}" alt="" loading="lazy">
+      <span class="timestamp">{entry['display_ts']} ↗</span>
+    </a>
+    <p class="entry-text">{safe_text}</p>
+  </article>
+"""
+        html += "</section>\n"
+    html += "</main>\n"
+    return html
