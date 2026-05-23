@@ -214,3 +214,52 @@ def render_scripts() -> str:
 })();
 </script>
 """
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main(project_dir: str):
+    import glob
+
+    # Locate VTT file
+    vtt_files = glob.glob(os.path.join(project_dir, "*.vtt"))
+    if not vtt_files:
+        print(f"ERROR: no .vtt file found in {project_dir}", file=sys.stderr)
+        sys.exit(1)
+    vtt_path = vtt_files[0]
+
+    # Parse VTT
+    with open(vtt_path, encoding="utf-8") as f:
+        vtt_text = f.read()
+    vtt_entries = parse_vtt_clean_entries(vtt_text)
+    print(f"Parsed {len(vtt_entries)} VTT entries from {os.path.basename(vtt_path)}")
+
+    # List images
+    images_dir = os.path.join(project_dir, "images")
+    image_files = sorted(f for f in os.listdir(images_dir) if f.endswith(".jpg"))
+    print(f"Found {len(image_files)} images")
+
+    # Build entries
+    entries = build_entries(vtt_entries, image_files, VIDEO_ID)
+
+    # Render HTML
+    html = (
+        render_html_head()
+        + render_nav()
+        + render_hero(image_files[0])
+        + render_summary()
+        + render_transcript(entries)
+        + render_scripts()
+        + "\n</body>\n</html>\n"
+    )
+
+    out_path = os.path.join(project_dir, "index.html")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"Written: {out_path}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print(f"Usage: python3 {sys.argv[0]} <project-dir>", file=sys.stderr)
+        sys.exit(1)
+    main(sys.argv[1])
