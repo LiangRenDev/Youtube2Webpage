@@ -1,6 +1,8 @@
 import re
 import os
 import sys
+import json
+import anthropic
 
 # ── VTT parsing ──────────────────────────────────────────────────────────────
 
@@ -68,28 +70,68 @@ def assign_chapter(secs: float) -> dict:
             return ch
     return CHAPTERS[-1]
 
-# ── Entry builder ─────────────────────────────────────────────────────────────
+# ── AI summarisation ──────────────────────────────────────────────────────────
 
-def build_entries(vtt_entries: list, image_files: list, video_id: str) -> list:
+def summarize_section(client: anthropic.Anthropic, section_label: str, raw_text: str) -> str:
+    """Call Claude to turn a raw transcript chunk into a coherent summary paragraph."""
+    response = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=512,
+        system=(
+            "You are a technical content editor writing magazine-style summaries of "
+            "conference talks. Write clear, engaging prose — no bullet points, no headers."
+        ),
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Below is the raw transcript from the '{section_label}' section of a talk "
+                f"by Tesla VP Ashok Elluswamy at ICCV 2025. Write a 3-5 sentence summary "
+                f"that captures the key technical ideas and insights. Use a journalistic "
+                f"tone suitable for a magazine article.\n\nTRANSCRIPT:\n{raw_text}"
+            ),
+        }],
+    )
+    return response.content[0].text.strip()
+
+
+# ── Section builder ────────────────────────────────────────────────────────────
+
+def build_sections(vtt_entries: list, video_id: str, summaries_file: str = "") -> list:
     """
-    For each image file (sorted), find the nearest VTT entry by timestamp.
-    Returns list of entry dicts ready for HTML rendering.
+    Group VTT text by chapter and build section dicts.
+
+    If summaries_file is provided (or a summaries.json exists in project_dir),
+    those pre-written summaries are used and no API call is made.
+    Otherwise, each section is summarised via the Claude API.
     """
-    result = []
-    for img in sorted(image_files):
-        secs = img_filename_to_secs(img)
-        nearest = min(vtt_entries, key=lambda e: abs(e["secs"] - secs))
-        chapter = assign_chapter(secs)
-        result.append({
-            "image":        img,
-            "text":         nearest["text"],
-            "secs":         secs,
-            "display_ts":   format_display_ts(secs),
-            "yt_url":       f"https://www.youtube.com/watch?v={video_id}&t={int(secs)}",
-            "chapter_slug": chapter["slug"],
-            "chapter_label": chapter["label"],
+    # Load pre-written summaries when available (slug → text mapping)
+    pre = {}
+    if summaries_file and os.path.exists(summaries_file):
+        with open(summaries_file, encoding="utf-8") as f:
+            pre = json.load(f)
+        print(f"Using pre-written summaries from {summaries_file}")
+
+    ai = None if pre else anthropic.Anthropic()
+    sections = []
+    for ch in CHAPTERS:
+        texts = [e["text"] for e in vtt_entries if ch["start"] <= e["secs"] < ch["end"]]
+        raw_text = " ".join(texts)
+        if ch["slug"] in pre:
+            summary = pre[ch["slug"]]
+            print(f"  Using pre-written summary for '{ch['label']}'")
+        else:
+            print(f"  Summarising '{ch['label']}' via API ({len(texts)} entries)…")
+            summary = summarize_section(ai, ch["label"], raw_text)
+        yt_url = f"https://www.youtube.com/watch?v={video_id}&t={int(ch['start'])}"
+        sections.append({
+            "slug":       ch["slug"],
+            "label":      ch["label"],
+            "summary":    summary,
+            "raw_text":   raw_text,   # kept so skill can read it
+            "display_ts": format_display_ts(ch["start"]),
+            "yt_url":     yt_url,
         })
-    return result
+    return sections
 
 # ── HTML rendering ────────────────────────────────────────────────────────────
 
@@ -155,7 +197,7 @@ def render_html_head(first_image: str = "") -> str:
 {ld}
   </script>
 
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
 """
@@ -165,11 +207,19 @@ def render_nav() -> str:
         f'<a href="#{ch["slug"]}">{ch["label"].title()}</a>'
         for ch in CHAPTERS
     )
+    mobile_links = "".join(
+        f'<a class="mobile-nav-link" href="#{ch["slug"]}">{ch["label"].title()}</a>'
+        for ch in CHAPTERS
+    )
     return f"""<nav id="topnav">
   <span class="nav-brand">ICCV 2025</span>
   <div class="nav-chapters">{links}</div>
   <input id="search" type="search" placeholder="Search transcript…" autocomplete="off">
+  <button id="burger" aria-label="Open menu" aria-expanded="false">&#9776;</button>
 </nav>
+<div id="mobile-menu" aria-hidden="true">
+  {mobile_links}
+</div>
 """
 
 def render_hero(first_image: str) -> str:
@@ -188,31 +238,20 @@ def render_summary() -> str:
 </div>
 """
 
-def render_transcript(entries: list) -> str:
-    """
-    Group entries by chapter, emit a chapter section for each,
-    alternating entry-img-left / entry-img-right within each chapter.
-    """
-    from itertools import groupby
-
+def render_sections(sections: list) -> str:
     html = '<main id="transcript">\n'
-    for chapter_slug, group in groupby(entries, key=lambda e: e["chapter_slug"]):
-        group = list(group)
-        chapter_label = group[0]["chapter_label"]
-        html += f'<section class="chapter" id="{chapter_slug}">\n'
-        html += f'  <div class="chapter-divider"><span>{chapter_label}</span></div>\n'
-        for i, entry in enumerate(group):
-            side_class = "entry-img-left" if i % 2 == 0 else "entry-img-right"
-            safe_text = entry["text"].replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
-            html += f"""  <article class="entry {side_class}">
-    <a class="entry-image" href="{entry['yt_url']}" target="_blank" rel="noopener">
-      <img src="images/{entry['image']}" alt="" loading="lazy">
-      <span class="timestamp">{entry['display_ts']} ↗</span>
+    for sec in sections:
+        safe_text = sec["summary"].replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+        html += f'<section class="chapter" id="{sec["slug"]}">\n'
+        html += f'  <div class="chapter-divider"><span>{sec["label"]}</span></div>\n'
+        html += f"""  <div class="section-summary">
+    <p class="section-text">{safe_text}</p>
+    <a class="section-link" href="{sec['yt_url']}" target="_blank" rel="noopener">
+      Watch from {sec['display_ts']} on YouTube ↗
     </a>
-    <p class="entry-text">{safe_text}</p>
-  </article>
+  </div>
+</section>
 """
-        html += "</section>\n"
     html += "</main>\n"
     return html
 
@@ -225,15 +264,9 @@ def render_scripts() -> str:
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.toLowerCase().trim();
     document.querySelectorAll('.chapter').forEach(chapter => {
-      let visibleCount = 0;
-      chapter.querySelectorAll('.entry').forEach(entry => {
-        const text = entry.querySelector('.entry-text').textContent.toLowerCase();
-        const match = !q || text.includes(q);
-        entry.classList.toggle('hidden', !match);
-        if (match) visibleCount++;
-      });
-      const divider = chapter.querySelector('.chapter-divider');
-      if (divider) divider.classList.toggle('hidden', visibleCount === 0 && !!q);
+      const text = (chapter.querySelector('.section-text') || {textContent:''}).textContent.toLowerCase();
+      const match = !q || text.includes(q);
+      chapter.classList.toggle('hidden', !match);
     });
   });
 
@@ -251,14 +284,34 @@ def render_scripts() -> str:
   }, { rootMargin: '-10% 0px -80% 0px' });
 
   document.querySelectorAll('.chapter').forEach(ch => observer.observe(ch));
+
+  // ── Mobile burger menu ───────────────────────────────────────────
+  const burger = document.getElementById('burger');
+  const mobileMenu = document.getElementById('mobile-menu');
+
+  function closeMenu() {
+    mobileMenu.classList.remove('open');
+    burger.setAttribute('aria-expanded', 'false');
+    burger.textContent = '\\u2630';
+  }
+
+  burger.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    burger.setAttribute('aria-expanded', isOpen);
+    burger.textContent = isOpen ? '\\u2715' : '\\u2630';
+  });
+
+  mobileMenu.querySelectorAll('.mobile-nav-link').forEach(a => {
+    a.addEventListener('click', closeMenu);
+  });
 })();
 </script>
 """
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def main(project_dir: str):
-    import glob
+def main(project_dir: str, output_slug: str = ""):
+    import glob, shutil
 
     # Locate VTT file
     vtt_files = glob.glob(os.path.join(project_dir, "*.vtt"))
@@ -273,33 +326,47 @@ def main(project_dir: str):
     vtt_entries = parse_vtt_clean_entries(vtt_text)
     print(f"Parsed {len(vtt_entries)} VTT entries from {os.path.basename(vtt_path)}")
 
-    # List images
-    images_dir = os.path.join(project_dir, "images")
-    image_files = sorted(f for f in os.listdir(images_dir) if f.endswith(".jpg"))
-    print(f"Found {len(image_files)} images")
+    # Determine output directory under docs/
+    slug = output_slug or os.path.basename(project_dir.rstrip("/\\"))
+    out_dir = os.path.join("docs", slug)
+    os.makedirs(out_dir, exist_ok=True)
 
-    # Build entries
-    entries = build_entries(vtt_entries, image_files, VIDEO_ID)
+    # Copy images into docs/<slug>/images/
+    src_images = os.path.join(project_dir, "images")
+    dst_images = os.path.join(out_dir, "images")
+    if os.path.isdir(src_images):
+        if os.path.exists(dst_images):
+            shutil.rmtree(dst_images)
+        shutil.copytree(src_images, dst_images)
+        image_files = sorted(f for f in os.listdir(dst_images) if f.endswith(".jpg"))
+    else:
+        image_files = []
+    hero_image = image_files[0] if image_files else ""
+
+    # Build sections (use summaries.json from source dir)
+    summaries_file = os.path.join(project_dir, "summaries.json")
+    sections = build_sections(vtt_entries, VIDEO_ID, summaries_file)
+    print(f"Built {len(sections)} sections")
 
     # Render HTML
     html = (
-        render_html_head(image_files[0])
+        render_html_head(hero_image)
         + render_nav()
-        + render_hero(image_files[0])
+        + render_hero(hero_image)
         + render_summary()
-        + render_transcript(entries)
+        + render_sections(sections)
         + render_scripts()
         + "\n</body>\n</html>\n"
     )
 
-    out_path = os.path.join(project_dir, "index.html")
+    out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Written: {out_path}")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print(f"Usage: python3 {sys.argv[0]} <project-dir>", file=sys.stderr)
+    if len(sys.argv) not in (2, 3):
+        print(f"Usage: python3 {sys.argv[0]} <source-dir> [output-slug]", file=sys.stderr)
         sys.exit(1)
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else "")

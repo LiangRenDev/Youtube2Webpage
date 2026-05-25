@@ -1,0 +1,10 @@
+# Large media source files
+*.vtt
+*.webm
+
+# Old per-project output (now generated into docs/)
+liwenzheng/index.html
+
+# Claude superpowers
+.superpowers/
+docs/superpowers/
